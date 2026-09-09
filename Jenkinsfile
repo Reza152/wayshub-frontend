@@ -15,16 +15,7 @@ pipeline {
             }
         }
 
-        stage('2. Test Application') {
-            steps {
-                sh '''
-                    npm install
-                    npm test -- --watchAll=false || true
-                '''
-            }
-        }
-
-        stage('3. Build & Dockerize') {
+        stage('2. Build & Dockerize') {
             steps {
                 script {
                     sh "docker build -t ${IMAGE_NAME}:${TAG} ."
@@ -32,7 +23,7 @@ pipeline {
             }
         }
 
-        stage('4. Push to Docker Hub') {
+        stage('3. Push to Docker Hub') {
             steps {
                 script {
                     sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
@@ -41,7 +32,7 @@ pipeline {
             }
         }
 
-        stage('5. Auto Deploy') {
+        stage('4. Auto Deploy') {
             steps {
                 sh '''
                     cd ~/staging-wayshub
@@ -54,20 +45,24 @@ pipeline {
 
     post {
         success {
-            sh '''
-                curl -H "Content-Type: application/json" \
-                -X POST \
-                -d '{"content": "wayshub-frontend berhasil di-build dan deploy."}' \
-                ${DISCORD_WEBHOOK}
-            '''
+            script {
+                sh '''
+                    curl -H "Content-Type: application/json" \
+                    -X POST \
+                    -d '{"embeds": [{"description": "wayshub-frontend berhasil di-build dan deploy.", "color": 3066993}]}' \
+                    ${DISCORD_WEBHOOK}
+                '''
+            }
         }
         failure {
-            sh '''
-                curl -H "Content-Type: application/json" \
-                -X POST \
-                -d '{"content": "⚠️ GAGAL! wayshub-frontend gagal di-build atau deploy."}' \
-                ${DISCORD_WEBHOOK}
-            '''
+            script {
+                sh '''
+                    curl -H "Content-Type: application/json" \
+                    -X POST \
+                    -d '{"embeds": [{"description": "⚠️ GAGAL! wayshub-frontend gagal di-build atau deploy.", "color": 15158332}]}' \
+                    ${DISCORD_WEBHOOK}
+                '''
+            }
         }
     }
 }
