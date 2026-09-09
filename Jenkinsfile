@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_CREDS = credentials('dockerhub-credentials')
+        DOCKER_CREDS = credentials('docker-hub-credentials')
         IMAGE_NAME = 'reza1019/wayshub-frontend'
         TAG = 'staging'
         DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1547146694569893911/ktPHbF2-M16wIgvGbQclZgIiR23v5p3D9aH5Mu_gJggeOBoG9UWRZhSsdwMAN3LXt4Eq'
