@@ -1,11 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        BACKEND_HOST = '172.31.15.141'
-        BACKEND_USER = 'reza'
-    }
-
     stages {
         stage('Checkout Code') {
             steps {
@@ -18,10 +13,10 @@ pipeline {
                 script {
                     sh """
                         echo '=== Mengirim file frontend ke VM Backend (staging-wayshub) ==='
-                        rsync -avz -e 'ssh -o StrictHostKeyChecking=no' ./ ${BACKEND_USER}@${BACKEND_HOST}:~/staging-wayshub/wayshub-frontend/
+                        rsync -avz -e 'ssh -o StrictHostKeyChecking=no' ./ reza@172.31.15.141:~/staging-wayshub/wayshub-frontend/
 
                         echo '=== Menjalankan Docker Compose Staging Frontend & Nginx ==='
-                        ssh -o StrictHostKeyChecking=no ${BACKEND_USER}@${BACKEND_HOST} "cd ~/staging-wayshub && docker-compose down && docker-compose up -d --build"
+                        ssh -o StrictHostKeyChecking=no reza@172.31.15.141 "cd ~/staging-wayshub && docker compose down && docker compose up -d --build"
                     """
                 }
             }
