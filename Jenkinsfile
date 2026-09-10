@@ -25,8 +25,7 @@ pipeline {
                                 git clone https://github.com/Reza152/wayshub-frontend.git .
                             fi
                             cd /home/reza/staging-wayshub
-                            docker compose down
-                            docker compose up -d --build
+                            docker compose up -d --build wayshub-frontend
                         '
                     '''
                 }
