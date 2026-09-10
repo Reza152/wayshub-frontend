@@ -2,53 +2,47 @@ pipeline {
     agent any
 
     stages {
-        stage('Build & Deploy') {
+        stage('Checkout Code') {
             steps {
-                echo 'Building WaysHub-Frontend...'
-                // Tambahkan perintah build/deploy lu di sini jika ada
+                git branch: 'main', url: 'https://github.com/Reza152/wayshub-frontend.git'
+            }
+        }
+
+        stage('Deploy Backend to Staging') {
+            steps {
+                sshagent(['ssh-backend-key']) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no reza@172.31.15.141 "
+                            cd ~/wayshub-frontend &&
+                            git pull origin main &&
+                            docker compose up -d --build
+                        "
+                    '''
+                }
             }
         }
     }
 
     post {
         success {
-            script {
-                withCredentials([string(credentialsId: 'DISCORD_WEBHOOK_URL', variable: 'WEBHOOK_URL')]) {
-                    def payload = """
-                    {
-                      "username": "Jenkins",
-                      "avatar_url": "https://www.jenkins.io/images/logos/jenkins/jenkins.png",
-                      "embeds": [
-                        {
-                          "title": "Jenkins Build SUCCESS",
-                          "description": "wayshub-frontend berhasil di-build & deploy.",
-                          "color": 3066993
-                        }
-                      ]
-                    }
-                    """
-                    sh "curl -H 'Content-Type: application/json' -d '${payload}' '${WEBHOOK_URL}'"
-                }
+            // Panggil webhook pakai credentials Jenkins, bukan ditulis mentah
+            withCredentials([string(credentialsId: 'DISCORD_WEBHOOK_URL', variable: 'WEBHOOK_URL')]) {
+                sh '''
+                    curl -H "Content-Type: application/json" \
+                    -X POST \
+                    -d '{"content": "✅ wayshub-frontend berhasil di-build dan deploy."}' \
+                    $WEBHOOK_URL
+                '''
             }
         }
         failure {
-            script {
-                withCredentials([string(credentialsId: 'DISCORD_WEBHOOK_URL', variable: 'WEBHOOK_URL')]) {
-                    def payload = """
-                    {
-                      "username": "Jenkins",
-                      "avatar_url": "https://www.jenkins.io/images/logos/jenkins/jenkins.png",
-                      "embeds": [
-                        {
-                          "title": "Jenkins Build FAILED",
-                          "description": "wayshub-frontend gagal di-build & deploy.",
-                          "color": 15158332
-                        }
-                      ]
-                    }
-                    """
-                    sh "curl -H 'Content-Type: application/json' -d '${payload}' '${WEBHOOK_URL}'"
-                }
+            withCredentials([string(credentialsId: 'DISCORD_WEBHOOK_URL', variable: 'WEBHOOK_URL')]) {
+                sh '''
+                    curl -H "Content-Type: application/json" \
+                    -X POST \
+                    -d '{"content": "❌ wayshub- frontend gagal di-build atau deploy!"}' \
+                    $WEBHOOK_URL
+                '''
             }
         }
     }
