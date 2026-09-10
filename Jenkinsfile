@@ -8,7 +8,7 @@ pipeline {
             }
         }
 
-        stage('Check Staging Directory') {
+        stage('Deploy Frontend to Staging') {
             steps {
                 withCredentials([sshUserPrivateKey(
                     credentialsId: 'wayshub-ssh-key', 
@@ -16,9 +16,38 @@ pipeline {
                     usernameVariable: 'SSH_USER'
                 )]) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@172.31.15.141 "ls -la ~/staging-wayshub"
+                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@172.31.15.141 "
+                            mkdir -p ~/staging-wayshub &&
+                            cd ~/staging-wayshub/wayshub-frontend &&
+                            git pull origin main &&
+                            cd ~/staging-wayshub &&
+                            docker compose up -d --build wayshub-frontend
+                        "
                     '''
                 }
+            }
+        }
+    }
+
+    post {
+        success {
+            withCredentials([string(credentialsId: 'DISCORD_WEBHOOK_URL', variable: 'WEBHOOK_URL')]) {
+                sh '''
+                    curl -H "Content-Type: application/json" \
+                    -X POST \
+                    -d '{"content": "✅ wayshub-frontend berhasil di-build dan deploy."}' \
+                    $WEBHOOK_URL
+                '''
+            }
+        }
+        failure {
+            withCredentials([string(credentialsId: 'DISCORD_WEBHOOK_URL', variable: 'WEBHOOK_URL')]) {
+                sh '''
+                    curl -H "Content-Type: application/json" \
+                    -X POST \
+                    -d '{"content": "❌ wayshub-frontend gagal di-build atau deploy!"}' \
+                    $WEBHOOK_URL
+                '''
             }
         }
     }
