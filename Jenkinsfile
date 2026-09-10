@@ -24,6 +24,7 @@ pipeline {
                             fi &&
                             cd ~/staging-wayshub/wayshub-frontend &&
                             git pull origin main &&
+                            cd ~/staging-wayshub &&
                             docker compose up -d --build
                         "
                     '''
