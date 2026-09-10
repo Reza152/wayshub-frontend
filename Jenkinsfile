@@ -16,14 +16,18 @@ pipeline {
                     usernameVariable: 'SSH_USER'
                 )]) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@172.31.15.141 "
-                            mkdir -p /home/reza/staging-wayshub/wayshub-frontend &&
-                            cd /home/reza/staging-wayshub/wayshub-frontend &&
-                            git pull origin main || git clone https://github.com/Reza152/wayshub-frontend.git . &&
-                            cd /home/reza/staging-wayshub &&
-                            docker compose down &&
+                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@172.31.15.141 '
+                            mkdir -p /home/reza/staging-wayshub/wayshub-frontend
+                            cd /home/reza/staging-wayshub/wayshub-frontend
+                            if [ -d ".git" ]; then
+                                git pull origin main
+                            else
+                                git clone https://github.com/Reza152/wayshub-frontend.git .
+                            fi
+                            cd /home/reza/staging-wayshub
+                            docker compose down
                             docker compose up -d --build
-                        "
+                        '
                     '''
                 }
             }
