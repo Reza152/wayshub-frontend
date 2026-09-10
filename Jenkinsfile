@@ -11,7 +11,7 @@ pipeline {
         stage('Deploy Frontend to Staging') {
             steps {
                 withCredentials([sshUserPrivateKey(
-                    credentialsId: 'ssh-backend-key', 
+                    credentialsId: 'wayshub-ssh-key', 
                     keyFileVariable: 'SSH_KEY', 
                     usernameVariable: 'SSH_USER'
                 )]) {
