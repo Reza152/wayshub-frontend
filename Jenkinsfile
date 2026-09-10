@@ -17,8 +17,9 @@ pipeline {
                 )]) {
                     sh '''
                         ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@172.31.15.141 "
+                            mkdir -p ~/staging-wayshub/wayshub-frontend &&
                             cd ~/staging-wayshub/wayshub-frontend &&
-                            git pull origin main &&
+                            git pull origin main || git clone https://github.com/Reza152/wayshub-frontend.git . &&
                             docker compose up -d --build
                         "
                     '''
@@ -50,4 +51,3 @@ pipeline {
         }
     }
 }
-
