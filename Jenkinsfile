@@ -4,20 +4,27 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                checkout scm
+                git branch: 'main', url: 'https://github.com/Reza152/wayshub-frontend.git'
             }
         }
 
-        stage('Deploy Frontend to Staging VM') {
+        stage('Deploy Frontend to Staging') {
             steps {
-                script {
-                    sh """
-                        echo '=== Mengirim file frontend ke VM Backend (staging-wayshub) ==='
-                        rsync -avz -e 'ssh -o StrictHostKeyChecking=no' ./ reza@172.31.15.141:~/staging-wayshub/wayshub-frontend/
-
-                        echo '=== Menjalankan Docker Compose Staging Frontend & Nginx ==='
-                        ssh -o StrictHostKeyChecking=no reza@172.31.15.141 "cd ~/staging-wayshub && docker compose down && docker compose up -d --build"
-                    """
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'wayshub-ssh-key', 
+                    keyFileVariable: 'SSH_KEY', 
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@172.31.15.141 "
+                            mkdir -p /home/reza/staging-wayshub/wayshub-frontend &&
+                            cd /home/reza/staging-wayshub/wayshub-frontend &&
+                            git pull origin main || git clone https://github.com/Reza152/wayshub-frontend.git . &&
+                            cd /home/reza/staging-wayshub &&
+                            docker compose down &&
+                            docker compose up -d --build
+                        "
+                    '''
                 }
             }
         }
@@ -25,10 +32,24 @@ pipeline {
 
     post {
         success {
-            echo 'Deployment Frontend Berhasil!'
+            withCredentials([string(credentialsId: 'DISCORD_WEBHOOK_URL', variable: 'WEBHOOK_URL')]) {
+                sh '''
+                    curl -H "Content-Type: application/json" \
+                    -X POST \
+                    -d '{"content": "✅ wayshub-frontend berhasil di-build dan deploy. 🚀"}' \
+                    $WEBHOOK_URL
+                '''
+            }
         }
         failure {
-            echo 'Deployment Frontend Gagal, Cek console output.'
+            withCredentials([string(credentialsId: 'DISCORD_WEBHOOK_URL', variable: 'WEBHOOK_URL')]) {
+                sh '''
+                    curl -H "Content-Type: application/json" \
+                    -X POST \
+                    -d '{"content": "❌ wayshub-frontend gagal di-build atau deploy! 😢"}' \
+                    $WEBHOOK_URL
+                '''
+            }
         }
     }
 }
