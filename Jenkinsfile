@@ -8,11 +8,15 @@ pipeline {
             }
         }
 
-        stage('Deploy Backend to Staging') {
+        stage('Deploy Frontend to Staging') {
             steps {
-                sshagent(['ssh-backend-key']) {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'ssh-backend-key', 
+                    keyFileVariable: 'SSH_KEY', 
+                    usernameVariable: 'SSH_USER'
+                )]) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no reza@172.31.15.141 "
+                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@172.31.15.141 "
                             cd ~/wayshub-frontend &&
                             git pull origin main &&
                             docker compose up -d --build
@@ -25,7 +29,6 @@ pipeline {
 
     post {
         success {
-            // Panggil webhook pakai credentials Jenkins, bukan ditulis mentah
             withCredentials([string(credentialsId: 'DISCORD_WEBHOOK_URL', variable: 'WEBHOOK_URL')]) {
                 sh '''
                     curl -H "Content-Type: application/json" \
@@ -40,7 +43,7 @@ pipeline {
                 sh '''
                     curl -H "Content-Type: application/json" \
                     -X POST \
-                    -d '{"content": "❌ wayshub- frontend gagal di-build atau deploy!"}' \
+                    -d '{"content": "❌ wayshub-frontend gagal di-build atau deploy!"}' \
                     $WEBHOOK_URL
                 '''
             }
