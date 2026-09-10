@@ -24,8 +24,10 @@ pipeline {
                             else
                                 git clone https://github.com/Reza152/wayshub-frontend.git .
                             fi
-                            cd /home/reza/staging-wayshub
-                            docker compose up -d --build wayshub-frontend
+                            docker stop wayshub-frontend-container || true
+                            docker rm wayshub-frontend-container || true
+                            docker build -t wayshub-frontend-image .
+                            docker run -d --name wayshub-frontend-container -p 3000:3000 wayshub-frontend-image
                         '
                     '''
                 }
