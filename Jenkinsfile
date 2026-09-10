@@ -8,23 +8,14 @@ pipeline {
             }
         }
 
-        stage('Deploy Frontend to Staging') {
+        stage('Deploy Frontend Locally') {
             steps {
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: 'wayshub-ssh-key', 
-                    keyFileVariable: 'SSH_KEY', 
-                    usernameVariable: 'SSH_USER'
-                )]) {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@172.31.15.141 "
-                            mkdir -p ~/staging-wayshub &&
-                            cd ~/staging-wayshub/wayshub-frontend &&
-                            git pull origin main &&
-                            cd ~/staging-wayshub &&
-                            docker compose up -d --build wayshub-frontend
-                        "
-                    '''
-                }
+                sh '''
+                    mkdir -p ~/staging-wayshub/wayshub-frontend &&
+                    cp -r ./* ~/staging-wayshub/wayshub-frontend/ &&
+                    cd ~/staging-wayshub &&
+                    docker compose up -d --build wayshub-frontend
+                '''
             }
         }
     }
@@ -35,7 +26,7 @@ pipeline {
                 sh '''
                     curl -H "Content-Type: application/json" \
                     -X POST \
-                    -d '{"content": "✅ wayshub-frontend berhasil di-build dan deploy."}' \
+                    -d '{"content": "✅ wayshub-frontend berhasil di-build dan deploy secara lokal di gateway."}' \
                     $WEBHOOK_URL
                 '''
             }
