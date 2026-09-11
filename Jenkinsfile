@@ -17,8 +17,7 @@ pipeline {
     stages {
         stage('Pull from SCM') {
             steps {
-                echo 'Pulling latest code from GitHub via SCM...'
-                git branch: 'main', credentialsId: 'github-pat', url: 'https://github.com/Reza152/wayshub-frontend.git'
+                echo 'Code successfully pulled via Jenkins SCM.'
             }
         }
 
