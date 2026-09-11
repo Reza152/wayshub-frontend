@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     triggers {
-        // Auto trigger setiap ada perubahan di SCM
         pollSCM('H/5 * * * *')
     }
 
@@ -18,8 +17,8 @@ pipeline {
     stages {
         stage('Pull from SCM') {
             steps {
-                echo 'Pulling latest code from GitHub...'
-                checkout scm
+                echo 'Pulling latest code from GitHub via SCM...'
+                git branch: 'main', credentialsId: 'github-pat', url: 'https://github.com/Reza152/wayshub-frontend.git'
             }
         }
 
@@ -30,7 +29,7 @@ pipeline {
             }
         }
 
-        Stage('Test Application') {
+        stage('Test Application') {
             steps {
                 echo 'Running application smoke test...'
                 sh """
