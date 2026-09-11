@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    triggers {
+        // Auto trigger setiap ada perubahan di SCM
+        pollSCM('H/5 * * * *')
+    }
+
     environment {
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
         IMAGE_NAME = 'reza1019/wayshub-frontend:latest'
@@ -25,7 +30,7 @@ pipeline {
             }
         }
 
-        stage('Test Application') {
+        Stage('Test Application') {
             steps {
                 echo 'Running application smoke test...'
                 sh """
@@ -47,7 +52,7 @@ pipeline {
             }
         }
 
-        stage('Deploy on top Docker (VM 2 via SSH)') {
+        stage('Deploy on top Docker (VM 2 via SSH-KEY)') {
             steps {
                 echo 'Deploying frontend container to VM 2 via SSH...'
                 sshagent(credentials: ["${VM_SSH_CREDENTIAL_ID}"]) {
@@ -74,7 +79,7 @@ pipeline {
                 sh '''
                     curl -H "Content-Type: application/json" \
                     -X POST \
-                    -d '{"content": "✅ **JENKINS SUCCESS**: Frontend WaysHub successfully built, tested, and deployed to VM 2!"}' \
+                    -d '{"content": "✅ **JENKINS SUCCESS**: Frontend WaysHub successfully built, tested, pushed, and deployed to VM 2 via SSH-KEY!"}' \
                     "$DISCORD_WEBHOOK_URL"
                 '''
             }
