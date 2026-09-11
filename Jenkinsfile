@@ -1,59 +1,91 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
+        DISCORD_WEBHOOK_ID = 'DISCORD_WEBHOOK_URL'
+        IMAGE_NAME = 'reza1019/wayshub-frontend:latest'
+    }
+
     stages {
-        stage('Checkout Code') {
+        stage('Pull from SCM') {
             steps {
-                git branch: 'main', url: 'https://github.com/Reza152/wayshub-frontend.git'
+                echo 'Pulling latest code from GitHub...'
+                checkout scm
             }
         }
 
-        stage('Deploy Frontend to Staging') {
+        stage('Dockerize & Build') {
             steps {
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: 'wayshub-ssh-key', 
-                    keyFileVariable: 'SSH_KEY', 
-                    usernameVariable: 'SSH_USER'
-                )]) {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@172.31.15.141 '
-                            mkdir -p /home/reza/staging-wayshub/wayshub-frontend
-                            cd /home/reza/staging-wayshub/wayshub-frontend
-                            if [ -d ".git" ]; then
-                                git pull origin main
-                            else
-                                git clone https://github.com/Reza152/wayshub-frontend.git .
-                            fi
-                            docker stop wayshub-frontend-container || true
-                            docker rm wayshub-frontend-container || true
-                            docker build -t wayshub-frontend-image .
-                            docker run -d --name wayshub-frontend-container -p 3000:3000 wayshub-frontend-image
-                        '
-                    '''
+                echo 'Building Docker image for Frontend...'
+                script {
+                    app = docker.build("${IMAGE_NAME}")
                 }
+            }
+        }
+
+        stage('Test Application') {
+            steps {
+                echo 'Running application smoke test...'
+                script {
+                    sh 'docker run -d -p 3000:80 --name test-frontend-container ${IMAGE_NAME}'
+                    sh 'sleep 3 && curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 | grep -E "200|302|404" || exit 1'
+                    sh 'docker rm -f test-frontend-container'
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                echo 'Pushing image to Docker Hub...'
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', "${DOCKER_CREDENTIALS_ID}") {
+                        app.push()
+                    }
+                }
+            }
+        }
+
+        stage('Deploy on top Docker') {
+            steps {
+                echo 'Deploying frontend container...'
+                sh '''
+                    docker pull ${IMAGE_NAME}
+                    docker stop production_frontend || true
+                    docker rm production_frontend || true
+                    docker run -d \
+                      --name production_frontend \
+                      -p 80:80 \
+                      --restart always \
+                      ${IMAGE_NAME}
+                '''
             }
         }
     }
 
     post {
         success {
-            withCredentials([string(credentialsId: 'DISCORD_WEBHOOK_URL', variable: 'WEBHOOK_URL')]) {
-                sh '''
-                    curl -H "Content-Type: application/json" \
-                    -X POST \
-                    -d '{"content": "✅ wayshub-frontend berhasil di-build dan deploy. 🚀"}' \
-                    $WEBHOOK_URL
-                '''
+            script {
+                withCredentials([string(credentialsId: "${DISCORD_WEBHOOK_ID}", variable: 'DISCORD_WEBHOOK')]) {
+                    sh '''
+                        curl -H "Content-Type: application/json" \
+                        -X POST \
+                        -d '{"content": "✅ **JENKINS SUCCESS**: Frontend WaysHub successfully built, tested, and deployed!"}' \
+                        $DISCORD_WEBHOOK
+                    '''
+                }
             }
         }
         failure {
-            withCredentials([string(credentialsId: 'DISCORD_WEBHOOK_URL', variable: 'WEBHOOK_URL')]) {
-                sh '''
-                    curl -H "Content-Type: application/json" \
-                    -X POST \
-                    -d '{"content": "❌ wayshub-frontend gagal di-build atau deploy! 😢"}' \
-                    $WEBHOOK_URL
-                '''
+            script {
+                withCredentials([string(credentialsId: "${DISCORD_WEBHOOK_ID}", variable: 'DISCORD_WEBHOOK')]) {
+                    sh '''
+                        curl -H "Content-Type: application/json" \
+                        -X POST \
+                        -d '{"content": "❌ **JENKINS FAILED**: Frontend WaysHub CI/CD Pipeline encountered an error."}' \
+                        $DISCORD_WEBHOOK
+                    '''
+                }
             }
         }
     }
