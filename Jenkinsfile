@@ -2,6 +2,7 @@ pipeline {
     agent any
 
     triggers {
+        // Auto-trigger setiap ada perubahan di SCM (Polling GitHub setiap 5 menit)
         pollSCM('H/5 * * * *')
     }
 
@@ -10,7 +11,7 @@ pipeline {
         IMAGE_NAME = 'reza1019/wayshub-frontend:latest'
         DISCORD_WEBHOOK_URL = credentials('DISCORD_WEBHOOK_URL')
         VM_SSH_CREDENTIAL_ID = 'wayshub-ssh-key' 
-        VM_HOST = '172.31.15.141'
+        VM_HOST = '172.31.15.141' // Target VM 2 tempat aplikasi dideploy
         VM_USER = 'reza'
     }
 
@@ -50,7 +51,7 @@ pipeline {
             }
         }
 
-        stage('Deploy on top Docker (VM 2 via SSH-KEY)') {
+        stage('Deploy to VM 2 via SSH-KEY') {
             steps {
                 echo 'Deploying frontend container to VM 2 via SSH...'
                 sshagent(credentials: ["${VM_SSH_CREDENTIAL_ID}"]) {
