@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
         IMAGE_NAME = 'reza1019/wayshub-frontend:latest'
-        DISCORD_WEBHOOK_URL = credentials('discord-webhook-token')
+        DISCORD_WEBHOOK_URL = credentials('DISCORD_WEBHOOK_URL')
     }
 
     stages {
