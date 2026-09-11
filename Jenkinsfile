@@ -5,6 +5,9 @@ pipeline {
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
         IMAGE_NAME = 'reza1019/wayshub-frontend:latest'
         DISCORD_WEBHOOK_URL = credentials('DISCORD_WEBHOOK_URL')
+        VM_SSH_CREDENTIAL_ID = 'wayshub-ssh-key' 
+        VM_HOST = '172.31.15.141'
+        VM_USER = 'reza'
     }
 
     stages {
@@ -44,19 +47,23 @@ pipeline {
             }
         }
 
-        stage('Deploy on top Docker') {
+        stage('Deploy on top Docker (VM 2 via SSH)') {
             steps {
-                echo 'Deploying frontend container...'
-                sh """
-                    docker pull ${IMAGE_NAME}
-                    docker stop production_frontend || true
-                    docker rm production_frontend || true
-                    docker run -d \
-                      --name production_frontend \
-                      -p 80:80 \
-                      --restart always \
-                      ${IMAGE_NAME}
-                """
+                echo 'Deploying frontend container to VM 2 via SSH...'
+                sshagent(credentials: ["${VM_SSH_CREDENTIAL_ID}"]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ${VM_USER}@${VM_HOST} '\
+                            docker pull ${IMAGE_NAME} && \
+                            docker stop production_frontend || true && \
+                            docker rm production_frontend || true && \
+                            docker run -d \
+                              --name production_frontend \
+                              -p 3000:80 \
+                              --restart always \
+                              ${IMAGE_NAME} \
+                        '
+                    """
+                }
             }
         }
     }
@@ -67,7 +74,7 @@ pipeline {
                 sh '''
                     curl -H "Content-Type: application/json" \
                     -X POST \
-                    -d '{"content": "✅ **JENKINS SUCCESS**: Frontend WaysHub successfully built, tested, and deployed!"}' \
+                    -d '{"content": "✅ **JENKINS SUCCESS**: Frontend WaysHub successfully built, tested, and deployed to VM 2!"}' \
                     "$DISCORD_WEBHOOK_URL"
                 '''
             }
