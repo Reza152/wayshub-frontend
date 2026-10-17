@@ -1,96 +1,37 @@
 pipeline {
     agent any
 
-    triggers {
-        // Auto-trigger setiap ada perubahan di SCM (Polling GitHub setiap 5 menit)
-        pollSCM('H/5 * * * *')
-    }
-
-    environment {
-        DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
-        IMAGE_NAME = 'reza1019/wayshub-frontend:latest'
-        DISCORD_WEBHOOK_URL = credentials('DISCORD_WEBHOOK_URL')
-        VM_SSH_CREDENTIAL_ID = 'wayshub-ssh-key' 
-        VM_HOST = '172.31.15.141' // Target VM 2 tempat aplikasi dideploy
-        VM_USER = 'reza'
+    options {
+        timestamps()
     }
 
     stages {
-        stage('Pull from SCM') {
+        stage('Deploy Frontend') {
             steps {
-                echo 'Code successfully pulled via Jenkins SCM.'
-            }
-        }
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'wayshub-ssh-key',
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    sh '''
+                        set -eu
 
-        stage('Dockerize & Build') {
-            steps {
-                echo 'Building Docker image for Frontend...'
-                sh "docker build -t ${IMAGE_NAME} ."
-            }
-        }
+                        ssh -o BatchMode=yes \
+                            -o ConnectTimeout=10 \
+                            -o StrictHostKeyChecking=accept-new \
+                            -i "$SSH_KEY" \
+                            "$SSH_USER@172.31.10.23" '
+                                set -eu
+                                cd /home/ubuntu/wayshub/frontend/source
+                                git pull --ff-only origin main
 
-        stage('Test Application') {
-            steps {
-                echo 'Running application smoke test...'
-                sh """
-                    docker run -d -p 3000:80 --name test-frontend-container ${IMAGE_NAME}
-                    sleep 3
-                    curl --fail http://localhost:3000 || exit 1
-                    docker rm -f test-frontend-container
-                """
-            }
-        }
-
-        stage('Push to Docker Hub') {
-            steps {
-                echo 'Pushing image to Docker Hub...'
-                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh "echo '${DOCKER_PASS}' | docker login -u '${DOCKER_USER}' --password-stdin"
-                    sh "docker push ${IMAGE_NAME}"
+                                cd /home/ubuntu/wayshub
+                                sudo -n docker compose config -q
+                                sudo -n docker compose up -d --build frontend
+                                sudo -n docker compose ps frontend
+                            '
+                    '''
                 }
-            }
-        }
-
-        stage('Deploy to VM 2 via SSH-KEY') {
-            steps {
-                echo 'Deploying frontend container to VM 2 via SSH...'
-                sshagent(credentials: ["${VM_SSH_CREDENTIAL_ID}"]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ${VM_USER}@${VM_HOST} '\
-                            docker pull ${IMAGE_NAME} && \
-                            docker stop production_frontend || true && \
-                            docker rm production_frontend || true && \
-                            docker run -d \
-                              --name production_frontend \
-                              -p 3000:80 \
-                              --restart always \
-                              ${IMAGE_NAME} \
-                        '
-                    """
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            script {
-                sh '''
-                    curl -H "Content-Type: application/json" \
-                    -X POST \
-                    -d '{"content": "✅ **JENKINS SUCCESS**: Frontend WaysHub successfully built, tested, pushed, and deployed to VM 2 via SSH-KEY!"}' \
-                    "$DISCORD_WEBHOOK_URL"
-                '''
-            }
-        }
-        failure {
-            script {
-                sh '''
-                    curl -H "Content-Type: application/json" \
-                    -X POST \
-                    -d '{"content": "❌ **JENKINS FAILED**: Frontend WaysHub CI/CD Pipeline encountered an error."}' \
-                    "$DISCORD_WEBHOOK_URL"
-                '''
             }
         }
     }
