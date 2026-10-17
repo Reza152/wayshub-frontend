@@ -14,27 +14,31 @@ const reducer = (state, action) => {
     
     switch(action.type){
         case 'LOGIN':
+            localStorage.setItem('token', action.payload.token);
             return {
                 ...state,
                 login: true,
                 loading: false,
-                token: localStorage.setItem('token', action.payload.token)
-            }
+                token: action.payload.token
+            };
 
-        case 'LOAD_USER':
+        case 'LOAD_USER': {
+            const user = {
+                id: action.payload.id,
+                email: action.payload.email,
+                chanelName: action.payload.chanelName,
+                description: action.payload.description,
+                thumbnail: action.payload.thumbnail,
+                photo: action.payload.photo
+            };
+            localStorage.setItem('user', JSON.stringify(user));
             return {
                 ...state,
                 login: true,
                 loading: false,
-                user: localStorage.setItem('user', JSON.stringify({
-                    id: action.payload.id,
-                    email: action.payload.email,
-                    chanelName: action.payload.chanelName,
-                    description: action.payload.description,
-                    thumbnail: action.payload.thumbnail,
-                    photo: action.payload.photo
-                }))
-            }
+                user
+            };
+        }
         case 'LOAD_SUBSCRIBTION':
             return{
                 ...state,
@@ -52,7 +56,15 @@ const reducer = (state, action) => {
             }
 
         case 'AUTH_ERROR':
-            return
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            return {
+                ...state,
+                login: false,
+                loading: false,
+                token: null,
+                user: null
+            };
         
         case 'LOGOUT':
             localStorage.removeItem('token');
